@@ -13,7 +13,7 @@ DEFAULT_CFG = {}
 def read_all_calculation_rules():
     """function to read all calculation rules from that module"""
     for name, cls in inspect.getmembers(importlib.import_module("calcrule_contribution_legacy.calculation_rule"), inspect.isclass):
-        if 'calcrule' in cls.__module__.split('.')[0]:
+        if cls.__module__.split('.')[1] == 'calculation_rule':
             CALCULATION_RULES.append(cls)
             cls.ready()
 

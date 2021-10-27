@@ -1,4 +1,4 @@
-CLASS_RULE_PARAM_VALIDATION = None
+CLASS_RULE_PARAM_VALIDATION = []
 
 FROM_TO = [
         {"from": "Policy", "to": "Invoice"},
