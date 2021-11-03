@@ -77,10 +77,7 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
 
     @classmethod
     def calculate(cls, instance, *args):
-        if instance.__class__.__name__ == "ContractDetails" or instance.__class__.__name__ == "Policy":
-            if instance.__class__.__name__ == "Policy":
-                pass
-                # policy_value = policy_values(policy=instance, family=instance.family, prev_policy=None)
+        pass
 
     @classmethod
     def get_linked_class(cls, sender, class_name, **kwargs):
