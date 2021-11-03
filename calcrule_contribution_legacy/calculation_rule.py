@@ -3,8 +3,8 @@ import json
 from .apps import AbsCalculationRule
 from .config import CLASS_RULE_PARAM_VALIDATION, \
     DESCRIPTION_CONTRIBUTION_VALUATION, FROM_TO
-from .converters.policy_to_invoice import PolicyToInvoiceConverter
-from core.signals import Signal
+from calcrule_contribution_legacy.converters import PolicyToInvoiceConverter, PolicyToLineItemConverter
+from core.signals import *
 from core import datetime
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.query import Q
@@ -77,7 +77,10 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
 
     @classmethod
     def calculate(cls, instance, *args):
-        pass
+        if instance.__class__.__name__ == "ContractDetails" or instance.__class__.__name__ == "Policy":
+            if instance.__class__.__name__ == "Policy":
+                pass
+                # policy_value = policy_values(policy=instance, family=instance.family, prev_policy=None)
 
     @classmethod
     def get_linked_class(cls, sender, class_name, **kwargs):
@@ -102,16 +105,48 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
         return list_class
 
     @classmethod
-    def convert(cls, instance, convert_from, convert_to, **kwargs):
-        if convert_from == "Policy":
-            cls._convert_policy(instance, convert_from, convert_to, **kwargs)
-        if convert_from == "Contract":
-            cls._convert_contract(instance, convert_from, convert_to, **kwargs)
+    @register_service_signal('convert_to_invoice')
+    def convert(cls, instance, convert_to, **kwargs):
+        # check from signal before if invoice already exist for instance
+        results = {}
+        signal = REGISTERED_SERVICE_SIGNALS['convert_to_invoice']
+        results_check_invoice_exist = signal.signal_results['before'][0][1]
+        if results_check_invoice_exist:
+            convert_from = instance.__class__.__name__
+            if convert_from == "Policy":
+                results = cls._convert_policy(instance)
+            if convert_from == "ContractContributionPlanDetails":
+                results = cls._convert_contract(instance)
+            results['user'] = kwargs.get('user', None)
+        # after this method signal is sent to invoice module to save invoice data in db
+        return results
 
     @classmethod
-    def _convert_policy(cls, instance, convert_from, convert_to, **kwargs):
-        pass
+    def convert_batch(cls, **kwargs):
+        """ function specific for informal sector """
+        # TODO Informal sector / from Policy to Invoice: this function will take the all polices
+        #  related to the product (all product if not specified)
+        #  that have no invoice and were created in the period specified in the specified location if any
+        function_arguments = kwargs.get('data')[1]
+        date_from = function_arguments.get('from_date', None)
+        date_to = function_arguments.get('to_date', None)
+        user = function_arguments.get('user', None)
+        product = function_arguments.get('product', None)
+        policies_covered = Policy.objects.filter(
+            Q(start_date__gte=date_from, start_date__lte=date_to, effective_date__isnull=False),
+        ).order_by('start_date')
+        if product:
+            policies_covered = policies_covered.filter(product__id=product)
+        # take all policies that have no invoice
+        for policy in policies_covered:
+            cls.run_convert(instance=policy, convert_to='Invoice', user=user)
 
     @classmethod
-    def _convert_contract(cls, instance, convert_from, convert_to, **kwargs):
+    def _convert_policy(cls, instance):
+        invoice = PolicyToInvoiceConverter.to_invoice_obj(policy=instance)
+        invoice_line_item = PolicyToLineItemConverter.to_invoice_line_item_obj(policy=instance)
+        return {'invoice_data': invoice, 'invoice_data_line': invoice_line_item}
+
+    @classmethod
+    def _convert_contract(cls, instance, **kwargs):
         pass

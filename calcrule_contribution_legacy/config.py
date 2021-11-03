@@ -2,7 +2,7 @@ CLASS_RULE_PARAM_VALIDATION = []
 
 FROM_TO = [
         {"from": "Policy", "to": "Invoice"},
-        {"from": "Contract", "to": "Invoice"}
+        {"from": "ContractContributionPlanDetails", "to": "InvoiceLine"}
 ]
 
 DESCRIPTION_CONTRIBUTION_VALUATION = F"" \

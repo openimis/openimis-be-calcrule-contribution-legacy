@@ -1,15 +1,12 @@
-from .policy_to_line_item import PolicyToLineItemConverter
 from django.contrib.contenttypes.models import ContentType
 from invoice.apps import InvoiceConfig
-from invoice.services import InvoiceService
 from invoice.models import Invoice
 
 
 class PolicyToInvoiceConverter(object):
 
     @classmethod
-    def to_invoice_obj(cls, policy, user):
-        invoice_service = InvoiceService(user)
+    def to_invoice_obj(cls, policy):
         invoice = {}
         cls.build_subject(policy, invoice)
         cls.build_thirdparty(policy, invoice)
@@ -18,22 +15,7 @@ class PolicyToInvoiceConverter(object):
         #cls.build_tax_analysis(invoice)
         cls.build_currency(invoice)
         cls.build_status(invoice)
-        result = invoice_service.create(invoice)
-        if result["success"] is True:
-            # build invoice item
-            result_line = PolicyToLineItemConverter.to_invoice_line_item_obj(
-                policy=policy,
-                invoice_id=result["data"]["id"],
-                user =user
-            )
-            if result_line["success"] is True:
-                # build invoice amounts based on invoice_line_item data
-                invoice_update = {}
-                invoice_update["id"] = result["data"]["id"]
-                cls.build_amounts(result_line["data"], invoice_update)
-                result_update = invoice_service.update(invoice_update)
-            return [result, result_line]
-        return [result]
+        return invoice
 
     @classmethod
     def build_subject(cls, policy, invoice):

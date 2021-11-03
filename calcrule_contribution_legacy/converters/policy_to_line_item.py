@@ -1,4 +1,3 @@
-from invoice.services import InvoiceLineItemService
 from django.contrib.contenttypes.models import ContentType
 from policy.models import Policy
 
@@ -6,10 +5,8 @@ from policy.models import Policy
 class PolicyToLineItemConverter(object):
 
     @classmethod
-    def to_invoice_line_item_obj(cls, policy, invoice_id, user):
-        invoice_line_item_service = InvoiceLineItemService(user)
+    def to_invoice_line_item_obj(cls, policy):
         invoice_line_item = {}
-        cls.build_invoice_fk(invoice_line_item, invoice_id)
         cls.build_line_fk(invoice_line_item, policy)
         cls.build_dates(invoice_line_item, policy)
         cls.build_code(invoice_line_item, policy)
@@ -21,12 +18,7 @@ class PolicyToLineItemConverter(object):
         cls.build_discount(invoice_line_item, policy)
         #cls.build_tax(invoice_line_item)
         cls.build_amounts(invoice_line_item, policy)
-        result = invoice_line_item_service.create(invoice_line_item)
-        return result
-
-    @classmethod
-    def build_invoice_fk(cls, invoice_line_item, invoice_id):
-        invoice_line_item["invoice_id"] = invoice_id
+        return invoice_line_item
 
     @classmethod
     def build_line_fk(cls, invoice_line_item, policy):
