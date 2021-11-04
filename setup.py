@@ -24,7 +24,10 @@ setup(
         'django-db-signals',
         'djangorestframework',
         'openimis-be-core',
+        'openimis-be-policy',
+        'openimis-be-contract',
         'openimis-be-calculation',
+        'openimis-be-invoice',
     ],
     classifiers=[
         'Environment :: Web Environment',
