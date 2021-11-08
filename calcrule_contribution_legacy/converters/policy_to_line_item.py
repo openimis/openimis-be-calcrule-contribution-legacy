@@ -59,7 +59,7 @@ class PolicyToLineItemConverter(object):
     @classmethod
     def build_discount(cls, invoice_line_item, policy):
         if policy.stage == Policy.STAGE_RENEWED:
-            invoice_line_item["discount"] = policy.preduct.renewal_discount_perc
+            invoice_line_item["discount"] = policy.product.renewal_discount_perc
 
     @classmethod
     def build_tax(cls, invoice_line_item):
