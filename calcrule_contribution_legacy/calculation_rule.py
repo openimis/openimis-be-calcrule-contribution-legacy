@@ -79,11 +79,10 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
     @classmethod
     def calculate(cls, instance, *args):
         class_name = instance.__class__.__name__
-        if class_name == "ContractDetails":
-            #policy_values
-            pass
+        if class_name == "ContractContributionPlanDetails":
+            return policy_values(instance.policy, instance.policy.family, None)
         if class_name == "Policy":
-            pass
+            return policy_values(instance, instance.family, None)
 
     @classmethod
     def get_linked_class(cls, sender, class_name, **kwargs):
@@ -151,7 +150,7 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
         invoice_line_item = PolicyToLineItemConverter.to_invoice_line_item_obj(policy=instance)
         return {
             'invoice_data': invoice,
-            'invoice_data_line': invoice_line_item,
+            'invoice_data_line': [invoice_line_item],
             'type_conversion': 'policy-invoice'
         }
 
