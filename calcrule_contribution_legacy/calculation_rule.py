@@ -3,7 +3,8 @@ import json
 from .apps import AbsCalculationRule
 from .config import CLASS_RULE_PARAM_VALIDATION, \
     DESCRIPTION_CONTRIBUTION_VALUATION, FROM_TO
-from calcrule_contribution_legacy.converters import PolicyToInvoiceConverter, PolicyToLineItemConverter
+from calcrule_contribution_legacy.converters import PolicyToInvoiceConverter, PolicyToLineItemConverter, \
+    ContractToInvoiceConverter, ContractCpdToLineItemConverter
 from core.signals import *
 from core import datetime
 from django.contrib.contenttypes.models import ContentType
@@ -15,7 +16,7 @@ from policy.values import policy_values
 class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
     version = 1
     uuid = "2aee6d54-eef4-4ee6-1c47-2793cfa5f9a8"
-    calculation_rule_name = "payment: fee for service"
+    calculation_rule_name = "Contribution: legacy"
     description = DESCRIPTION_CONTRIBUTION_VALUATION
     impacted_class_parameter = CLASS_RULE_PARAM_VALIDATION
     date_valid_from = datetime.datetime(2000, 1, 1)
@@ -77,7 +78,11 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
 
     @classmethod
     def calculate(cls, instance, *args):
-        pass
+        class_name = instance.__class__.__name__
+        if class_name == "ContractContributionPlanDetails":
+            return policy_values(instance.policy, instance.policy.family, None)
+        if class_name == "Policy":
+            return policy_values(instance, instance.family, None)
 
     @classmethod
     def get_linked_class(cls, sender, class_name, **kwargs):
@@ -112,8 +117,9 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
             convert_from = instance.__class__.__name__
             if convert_from == "Policy":
                 results = cls._convert_policy(instance)
-            if convert_from == "ContractContributionPlanDetails":
-                results = cls._convert_contract(instance)
+            if convert_from == "Contract":
+                ccpd_list = kwargs.get('ccpd_list', None)
+                results = cls._convert_contract(instance, ccpd_list=ccpd_list)
             results['user'] = kwargs.get('user', None)
         # after this method signal is sent to invoice module to save invoice data in db
         return results
@@ -142,8 +148,24 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
     def _convert_policy(cls, instance):
         invoice = PolicyToInvoiceConverter.to_invoice_obj(policy=instance)
         invoice_line_item = PolicyToLineItemConverter.to_invoice_line_item_obj(policy=instance)
-        return {'invoice_data': invoice, 'invoice_data_line': invoice_line_item}
+        return {
+            'invoice_data': invoice,
+            'invoice_data_line': [invoice_line_item],
+            'type_conversion': 'policy-invoice'
+        }
 
     @classmethod
     def _convert_contract(cls, instance, **kwargs):
-        pass
+        invoice = ContractToInvoiceConverter.to_invoice_obj(contract=instance)
+        ccpd_list = kwargs.get('ccpd_list', None)
+        invoice_line_item = []
+        if ccpd_list:
+            for ccpd in ccpd_list:
+                invoice_line_item.append(
+                    ContractCpdToLineItemConverter.to_invoice_line_item_obj(contract_cpd=ccpd)
+                )
+        return {
+            'invoice_data': invoice,
+            'invoice_data_line': invoice_line_item,
+            'type_conversion': 'contract-invoice'
+        }
