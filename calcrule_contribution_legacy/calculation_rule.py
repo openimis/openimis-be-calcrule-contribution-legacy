@@ -49,7 +49,7 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
                 cls.signal_convert_from_to.connect(cls.run_convert, dispatch_uid="on_convert_from_to")
 
     @classmethod
-    def active_for_object(cls, instance, context, type, sub_type):
+    def active_for_object(cls, instance, context, type="account_receivable", sub_type="contribution"):
         return instance.__class__.__name__ == "ContributionPlan" \
                and context in ["submit"] \
                and cls.check_calculation(instance)
