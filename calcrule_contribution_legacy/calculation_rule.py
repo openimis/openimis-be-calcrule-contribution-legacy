@@ -16,7 +16,7 @@ from policy.values import policy_values
 class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
     version = 1
     uuid = "2aee6d54-eef4-4ee6-1c47-2793cfa5f9a8"
-    calculation_rule_name = "Contribution: legacy"
+    calculation_rule_name = "CV: legacy"
     description = DESCRIPTION_CONTRIBUTION_VALUATION
     impacted_class_parameter = CLASS_RULE_PARAM_VALIDATION
     date_valid_from = datetime.datetime(2000, 1, 1)
