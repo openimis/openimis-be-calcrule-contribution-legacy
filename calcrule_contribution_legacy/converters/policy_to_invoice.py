@@ -36,9 +36,9 @@ class PolicyToInvoiceConverter(object):
 
     @classmethod
     def build_date_datas(cls, policy, invoice):
-        invoice["date_due"] = policy.effective_date
+        invoice["date_due"] = policy.effective_date if policy.effective_date else policy.enroll_date
         invoice["date_invoice"] = policy.enroll_date
-        invoice["date_valid_from"] = policy.effective_date
+        invoice["date_valid_from"] = policy.effective_date if policy.effective_date else policy.enroll_date
         invoice["date_valid_to"] = policy.expiry_date
 
     @classmethod

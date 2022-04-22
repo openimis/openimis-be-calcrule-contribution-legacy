@@ -1,16 +1,16 @@
-import json
+from django.contrib.contenttypes.models import ContentType
+from django.db.models.query import Q
 
-from .apps import AbsCalculationRule
-from .config import CLASS_RULE_PARAM_VALIDATION, \
+from calcrule_contribution_legacy.apps import AbsCalculationRule
+from calcrule_contribution_legacy.config import CLASS_RULE_PARAM_VALIDATION, \
     DESCRIPTION_CONTRIBUTION_VALUATION, FROM_TO
 from calcrule_contribution_legacy.converters import PolicyToInvoiceConverter, PolicyToLineItemConverter, \
     ContractToInvoiceConverter, ContractCpdToLineItemConverter
+
+from core.models import User
 from core.signals import *
 from core import datetime
-from django.contrib.contenttypes.models import ContentType
-from django.db.models.query import Q
 from policy.models import Policy
-from policy.values import policy_values
 
 
 class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
@@ -50,16 +50,18 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
 
     @classmethod
     def active_for_object(cls, instance, context, type="account_receivable", sub_type="contribution"):
-        return instance.__class__.__name__ == "ContributionPlan" \
-               and context in ["submit"] \
+        return instance.__class__.__name__ in ["ContributionPlan", "Policy"] \
+               and context in ["submit", "PolicyCreatedInvoice", "ContractCreated"] \
                and cls.check_calculation(instance)
 
     @classmethod
     def check_calculation(cls, instance):
         class_name = instance.__class__.__name__
         match = False
-        if class_name == "ContributionPlan":
-            match = cls.uuid == instance.calculation
+        if class_name == "ABCMeta":
+            match = str(cls.uuid) == str(instance.uuid)
+        elif class_name == "ContributionPlan":
+            match = str(cls.uuid) == str(instance.calculation)
         elif class_name == "PolicyHolderInsuree":
             match = cls.check_calculation(instance.cpb)
         elif class_name == "ContractDetails":
@@ -71,18 +73,22 @@ class ContributionPlanCalculationRuleProductModeling(AbsCalculationRule):
                 if cls.check_calculation(cp):
                     match = True
                     break
+        elif class_name == "Policy":
+            match = cls.check_calculation(instance.family)
         # for legacy the calculation is valid for all famillies
         elif class_name == "Family":
             match = True
         return match
 
     @classmethod
-    def calculate(cls, instance, *args):
+    def calculate(cls, instance, **kwargs):
+        context = kwargs.get('context', None)
+        user = kwargs.get('user', None)
+        if user is None:
+            user = User.objects.filter(i_user__id=instance.audit_user_id).first()
         class_name = instance.__class__.__name__
-        if class_name == "ContractContributionPlanDetails":
-            return policy_values(instance.policy, instance.policy.family, None)
-        if class_name == "Policy":
-            return policy_values(instance, instance.family, None)
+        cls.run_convert(instance=instance, convert_to='Invoice', user=user)
+        return f"conversion finished {cls.calculation_rule_name}"
 
     @classmethod
     def get_linked_class(cls, sender, class_name, **kwargs):
