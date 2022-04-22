@@ -27,7 +27,7 @@ class PolicyToLineItemConverter(object):
 
     @classmethod
     def build_dates(cls, invoice_line_item, policy):
-        invoice_line_item["date_valid_from"] = policy.effective_date
+        invoice_line_item["date_valid_from"] = policy.effective_date if policy.effective_date else policy.enroll_date
         invoice_line_item["date_valid_to"] = policy.expiry_date
 
     @classmethod
@@ -59,7 +59,8 @@ class PolicyToLineItemConverter(object):
     @classmethod
     def build_discount(cls, invoice_line_item, policy):
         if policy.stage == Policy.STAGE_RENEWED:
-            invoice_line_item["discount"] = policy.product.renewal_discount_perc
+            invoice_line_item["discount"] = policy.product.renewal_discount_perc \
+                if policy.product.renewal_discount_perc else 0
 
     @classmethod
     def build_tax(cls, invoice_line_item):
@@ -70,6 +71,7 @@ class PolicyToLineItemConverter(object):
     def build_amounts(cls, invoice_line_item, policy):
         invoice_line_item["amount_net"] = invoice_line_item["quantity"] * invoice_line_item["unit_price"]
         if "discount" in invoice_line_item:
-            invoice_discount = invoice_line_item["amount_net"] * invoice_line_item["discount"]
-            invoice_line_item["amount_net"] = invoice_line_item["amount_net"] - invoice_discount
+            if invoice_line_item["discount"] > 0:
+                invoice_discount = invoice_line_item["amount_net"] * invoice_line_item["discount"]
+                invoice_line_item["amount_net"] = invoice_line_item["amount_net"] - invoice_discount
         invoice_line_item["amount_total"] = invoice_line_item["amount_net"]
