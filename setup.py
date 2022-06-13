@@ -9,7 +9,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='openimis-be-calcrule-contribution-legacy',
-    version='1.0.0',
+    version='1.4.0',
     packages=find_packages(),
     include_package_data=True,
     license='GNU AGPL v3',
@@ -24,7 +24,10 @@ setup(
         'django-db-signals',
         'djangorestframework',
         'openimis-be-core',
+        'openimis-be-policy',
+        'openimis-be-contract',
         'openimis-be-calculation',
+        'openimis-be-invoice',
     ],
     classifiers=[
         'Environment :: Web Environment',
