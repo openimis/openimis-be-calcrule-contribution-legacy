@@ -1,7 +1,7 @@
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.query import Q
 
-from calcrule_contribution_legacy.apps import AbsStrategy
+from core.abs_calculation_rule import AbsStrategy
 from calcrule_contribution_legacy.config import CLASS_RULE_PARAM_VALIDATION, \
     DESCRIPTION_CONTRIBUTION_VALUATION, FROM_TO
 from calcrule_contribution_legacy.converters import PolicyToInvoiceConverter, PolicyToLineItemConverter, \
@@ -11,7 +11,7 @@ from core.models import User
 from core.signals import *
 from core import datetime
 from policy.models import Policy
-
+from uuid import UUID
 
 class ContributionPlanCalculationRuleProductModeling(AbsStrategy):
     version = 1
@@ -38,9 +38,9 @@ class ContributionPlanCalculationRuleProductModeling(AbsStrategy):
         class_name = instance.__class__.__name__
         match = False
         if class_name == "ABCMeta":
-            match = str(cls.uuid) == str(instance.uuid)
-        elif class_name == "ContributionPlan":
-            match = str(cls.uuid) == str(instance.calculation)
+            match = UUID(cls.uuid) == UUID(instance.uuid)
+        if class_name == "ContributionPlan":
+            match = UUID(cls.uuid) == UUID(instance.calculation)
         elif class_name == "PolicyHolderInsuree":
             match = cls.check_calculation(instance.cpb)
         elif class_name == "ContractDetails":
