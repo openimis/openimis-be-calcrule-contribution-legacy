@@ -103,7 +103,9 @@ class MutationTestContract(openIMISGraphQLTestCase):
         input_param = {
             "code": "XYZ:" + str(time_stamp),
             "policyHolderId": str(self.policy_holder.id),
-            "clientMutationId": str(uuid.uuid4())
+            "clientMutationId": str(uuid.uuid4()),
+            "dateValidFrom": str(time_stamp.date()),
+            "dateValidTo": str((time_stamp + datetime.timedelta(days=30)).date())
         }
         content=self.send_mutation("createContract", input_param, self.user_token )        
         self.assertEqual(content['data']['mutationLogs']['edges'][0]['node']['status'], 2)
