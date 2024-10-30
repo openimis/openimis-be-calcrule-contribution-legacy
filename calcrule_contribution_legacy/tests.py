@@ -3,12 +3,13 @@ from unittest import mock
 from django.test import TestCase
 
 import graphene
-from contract.tests.helpers import *
+from product.test_helpers import create_test_product
+from policy.test_helpers import create_test_policy
 from contract.models import Contract, ContractDetails
-from core.models import TechnicalUser
+from core.models import TechnicalUser, User
 from core.models.openimis_graphql_test_case import openIMISGraphQLTestCase
 from core.test_helpers import create_test_interactive_user
-from policyholder.tests.helpers import *
+from policyholder.tests.helpers import create_test_policy_holder_insuree, create_test_policy_holder
 from contribution_plan.tests.helpers import create_test_contribution_plan, \
     create_test_contribution_plan_bundle, create_test_contribution_plan_bundle_details
 from contract import schema as contract_schema
@@ -20,6 +21,8 @@ import json
 import uuid
 from graphql_jwt.shortcuts import get_token
 from calcrule_contribution_legacy.calculation_rule import ContributionPlanCalculationRuleProductModeling
+import datetime
+
 
 class MutationTestContract(openIMISGraphQLTestCase):
     GRAPHQL_URL = f'/{settings.SITE_ROOT()}graphql'
@@ -28,7 +31,7 @@ class MutationTestContract(openIMISGraphQLTestCase):
     GRAPHQL_SCHEMA = True
     admin_user = None
     schema = Schema(
-            query=contract_schema.Query,
+        query=contract_schema.Query,
     )
 
     class BaseTestContext:
@@ -43,7 +46,7 @@ class MutationTestContract(openIMISGraphQLTestCase):
         super(MutationTestContract, cls).setUpClass()
         cls.user = User.objects.filter(username='admin', i_user__isnull=False).first()
         if not cls.user:
-            cls.user=create_test_interactive_user(username='admin')
+            cls.user = create_test_interactive_user(username='admin')
         # some test data so as to created contract properly
         cls.user_token = get_token(cls.user, cls.BaseTestContext(user=cls.user))
 
@@ -51,14 +54,14 @@ class MutationTestContract(openIMISGraphQLTestCase):
         cls.rate = 5
         cls.number_of_insuree = 2
         cls.policy_holder = create_test_policy_holder()
-        product = create_test_product("PlanCode", custom_props={"lump_sum": 200 })
+        product = create_test_product("PlanCode", custom_props={"lump_sum": 200})
 
         # create contribution plans etc
         cls.contribution_plan_bundle = create_test_contribution_plan_bundle()
-        cls.contribution_plan = create_test_contribution_plan( 
+        cls.contribution_plan = create_test_contribution_plan(
             product=product,
             calculation=ContributionPlanCalculationRuleProductModeling.uuid,
-            custom_props={ "json_ext": {"calculation_rule": {"rate": cls.rate}}}
+            custom_props={"json_ext": {"calculation_rule": {"rate": cls.rate}}}
         )
         cls.contribution_plan_bundle_details = create_test_contribution_plan_bundle_details(
             contribution_plan=cls.contribution_plan,
@@ -107,7 +110,7 @@ class MutationTestContract(openIMISGraphQLTestCase):
             "dateValidFrom": str(time_stamp.date()),
             "dateValidTo": str((time_stamp + datetime.timedelta(days=30)).date())
         }
-        content=self.send_mutation("createContract", input_param, self.user_token )        
+        content = self.send_mutation("createContract", input_param, self.user_token)
         self.assertEqual(content['data']['mutationLogs']['edges'][0]['node']['status'], 2)
         del input_param["clientMutationId"]
         result = self.find_by_exact_attributes_query(
@@ -117,33 +120,41 @@ class MutationTestContract(openIMISGraphQLTestCase):
         converted_id = base64.b64decode(result[0]['node']['id']).decode('utf-8').split(':')[1]
 
         # SUBMIT
-        input_param = {'id': converted_id,
-            "clientMutationId": str(uuid.uuid4())}
-        content=self.send_mutation("submitContract", input_param, self.user_token )        
+        input_param = {
+            'id': converted_id,
+            "clientMutationId": str(uuid.uuid4())
+        }
+        content = self.send_mutation("submitContract", input_param, self.user_token)
         self.assertEqual(content['data']['mutationLogs']['edges'][0]['node']['status'], 2)
 
         # COUNTER
-        input_param = {'id': converted_id,
-            "clientMutationId": str(uuid.uuid4())}
-        content=self.send_mutation("counterContract", input_param, self.user_token )        
+        input_param = {
+            'id': converted_id,
+            "clientMutationId": str(uuid.uuid4())
+        }
+        content = self.send_mutation("counterContract", input_param, self.user_token)
 
         self.assertEqual(content['data']['mutationLogs']['edges'][0]['node']['status'], 2)
 
         # reSUBMIT
-        input_param = {'id': converted_id,
-            "clientMutationId": str(uuid.uuid4())}
-        content=self.send_mutation("submitContract", input_param, self.user_token )        
+        input_param = {
+            'id': converted_id,
+            "clientMutationId": str(uuid.uuid4())
+        }
+        content = self.send_mutation("submitContract", input_param, self.user_token)
         self.assertEqual(content['data']['mutationLogs']['edges'][0]['node']['status'], 2)
         # Approve
-        input_param = {'id': converted_id,
-            "clientMutationId": str(uuid.uuid4())}
-        content=self.send_mutation("approveContract", input_param, self.user_token )        
+        input_param = {
+            'id': converted_id,
+            "clientMutationId": str(uuid.uuid4())
+        }
+        content = self.send_mutation("approveContract", input_param, self.user_token)
 
         self.assertEqual(content['data']['mutationLogs']['edges'][0]['node']['status'], 2)
-        
+
         # tear down the test data (TODO FK conflict with mutation )
-        #ContractDetails.objects.filter(contract_id=str(converted_id)).delete()
-        #Contract.objects.filter(id=str(converted_id)).delete()
+        # ContractDetails.objects.filter(contract_id=str(converted_id)).delete()
+        # ontract.objects.filter(id=str(converted_id)).delete()
 
 
     def find_by_id_query(self, query_type, id, context=None):
@@ -189,7 +200,11 @@ class MutationTestContract(openIMISGraphQLTestCase):
         node_content_str = "\n".join(params.keys()) if query_type == "contract" else ''
         query = F'''
         {{
-            {query_type}({'contract_Id: "' + str(params["contractId"]) + '", orderBy: ["-dateCreated"]' if "contractId" in params else self.build_params(params)}) {{
+            {query_type}({(
+                'contract_Id: "' + str(params["contractId"]) + '", orderBy: ["-dateCreated"]'
+                if "contractId" in params else
+                self.build_params(params))
+                }) {{
                 totalCount
                 edges {{
                   node {{
@@ -220,15 +235,15 @@ class MutationTestContract(openIMISGraphQLTestCase):
         return query_data
 
     def add_mutation(self, mutation_type, input_params, context=None):
-        
+
         if "clientMutationId" not in input_params:
-            input_params["clientMutationId"]= str(uuid.uuid4())
+            input_params["clientMutationId"] = str(uuid.uuid4())
         mutation = f'''
-        mutation 
+        mutation
         {{
             {mutation_type}(input: {{
                {self.build_params(input_params)}
-            }})  
+            }})
 
           {{
             internalId
@@ -236,56 +251,13 @@ class MutationTestContract(openIMISGraphQLTestCase):
           }}
         }}
         '''
-        mutation_result = self.query(mutation, 
-                                     
-            headers={"HTTP_AUTHORIZATION": f"Bearer {self.user_token}"}, )
+        mutation_result = self.query(
+            mutation,
+            headers={"HTTP_AUTHORIZATION": f"Bearer {self.user_token}"},
+        )
         self.assertResponseNoErrors(mutation_result)
         content = json.loads(mutation_result.content)
         return content
-
-
-    def find_by_exact_attributes_query(self, query_type, params, context=None):
-        if "dateValidFrom" in params:
-            params.pop('dateValidFrom')
-        if "clientMutationId" in params:
-            params.pop('clientMutationId')
-        if "dateValidTo" in params:
-            params.pop('dateValidTo')
-        if "policyHolderId" in params:
-            params.pop('policyHolderId')
-        if "contributionPlanBundleId" in params:
-            params.pop('contributionPlanBundleId')
-        if "insureeId" in params:
-            params.pop('insureeId')
-        if "uuids" in params:
-            params["id"] = params["uuids"][0]
-            params.pop("uuids")
-        node_content_str = "\n".join(params.keys()) if query_type == "contract" else ''
-        query = F'''
-        {{
-            {query_type}({'contract_Id: "' + str(params["contractId"]) + '", orderBy: ["-dateCreated"]' if "contractId" in params else self.build_params(params)}) {{
-                totalCount
-                edges {{
-                  node {{
-                    id
-                    {node_content_str}
-                    version
-                    {'amountDue' if query_type == 'contract' else ''}
-                    {'amountNotified' if query_type == 'contract' else ''}
-                    {'amountRectified' if query_type == 'contract' else ''}
-                    {'state' if query_type == 'contract' else ''}
-                    {'paymentReference' if query_type == 'contract' else ''}
-                  }}
-                  cursor
-                }}
-          }}
-        }}
-        '''
-        query_result = self.execute_query(query, context=context)
-        records = query_result[query_type]
-        return records
-
-
 
 
     def execute_mutation(self, mutation, context=None):
